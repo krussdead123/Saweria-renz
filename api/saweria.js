@@ -1,4 +1,3 @@
-// api/saweria.js
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(200).json({ message: "Saweria webhook aktif" });
@@ -6,12 +5,11 @@ export default async function handler(req, res) {
 
   const body = req.body;
 
-  // Ambil data penting saja
-  const username = body?.data?.name || "";      // Username Roblox
-  const amount = Number(body?.data?.amount || 0);
-  const message = body?.data?.message || "";
+  // Ambil data langsung dari payload Saweria
+  const username = body?.donator_name || "Unknown";
+  const amount = Number(body?.amount_to_display || body?.amount_raw || 0);
+  const message = body?.message || "";
 
-  // Validasi minimal
   if (!username || amount <= 0) {
     console.log("Invalid Saweria Payload:", body);
     return res.status(200).json({ success: false });
@@ -19,7 +17,6 @@ export default async function handler(req, res) {
 
   console.log("Saweria incoming:", username, amount, message);
 
-  // Payload untuk Roblox listener
   const payload = {
     username,
     amount,
@@ -35,9 +32,7 @@ export default async function handler(req, res) {
           "x-api-key": process.env.ROBLOX_API_KEY,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          message: JSON.stringify(payload),
-        }),
+        body: JSON.stringify({ message: JSON.stringify(payload) }),
       }
     );
 
