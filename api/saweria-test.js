@@ -1,28 +1,23 @@
 export default async function handler(req, res) {
-  // Ambil query string
-  const donator_name = req.query.username || "TestUser";
-  const amount_raw = Number(req.query.amount || 1000);
-  const message = req.query.message || "Test donasi!";
-
-  // Buat payload mirip Saweria
   const payload = {
     version: "2022.01",
     created_at: new Date().toISOString(),
-    id: crypto.randomUUID(),
+    id: "test-donation-123",
     type: "donation",
-    amount_raw: amount_raw,
-    cut: 0,
-    donator_name,
-    donator_email: "test@example.com",
+    amount_raw: Number(req.query.amount_raw || 1000),          // jumlah kotor
+    cut: -58,                                                  // potongan
+    donator_name: req.query.username || "TestUser",           // username
+    donator_email: req.query.email || "test@example.com",
     donator_is_user: false,
-    message,
+    message: req.query.message || "Test donasi!",
     etc: {
-      amount_to_display: amount_raw,
-      transaction_fee_policy: "TIPPER",
-    },
+      amount_to_display: Number(req.query.amount || 1000),    // jumlah yang tampil
+      qr_string: "TESTQRSTRING",
+      transaction_fee_policy: "TIPPER"
+    }
   };
 
-  console.log("TEST → Sending to Roblox:", payload);
+  console.log("TEST → Sending Saweria-like payload to Roblox:", payload);
 
   try {
     const send = await fetch(
@@ -34,7 +29,12 @@ export default async function handler(req, res) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message: JSON.stringify(payload),
+          // Roblox script kamu hanya butuh username, amount, message
+          message: JSON.stringify({
+            username: payload.donator_name,
+            amount: payload.etc.amount_to_display,
+            message: payload.message
+          })
         }),
       }
     );
