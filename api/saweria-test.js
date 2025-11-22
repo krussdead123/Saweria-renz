@@ -1,12 +1,25 @@
 export default async function handler(req, res) {
-  const username = req.query.username || "TestUser";
-  const amount = Number(req.query.amount || 1000);
+  // Ambil query string
+  const donator_name = req.query.username || "TestUser";
+  const amount_raw = Number(req.query.amount || 1000);
   const message = req.query.message || "Test donasi!";
 
+  // Buat payload mirip Saweria
   const payload = {
-    username,
-    amount,
+    version: "2022.01",
+    created_at: new Date().toISOString(),
+    id: crypto.randomUUID(),
+    type: "donation",
+    amount_raw: amount_raw,
+    cut: 0,
+    donator_name,
+    donator_email: "test@example.com",
+    donator_is_user: false,
     message,
+    etc: {
+      amount_to_display: amount_raw,
+      transaction_fee_policy: "TIPPER",
+    },
   };
 
   console.log("TEST → Sending to Roblox:", payload);
