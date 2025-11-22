@@ -1,3 +1,4 @@
+// api/saweria.js
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(200).json({ message: "Saweria webhook aktif" });
@@ -5,30 +6,47 @@ export default async function handler(req, res) {
 
   const body = req.body;
 
-  const userId = Number(body?.data?.user_id);     // langsung user id roblox
-  const amount = Number(body?.data?.amount || 0); 
-  const message = body?.data?.message || "";      
+  // Ambil data penting saja
+  const username = body?.data?.name || "";      // Username Roblox
+  const amount = Number(body?.data?.amount || 0);
+  const message = body?.data?.message || "";
 
-  console.log("Sending to Roblox:", userId, amount, message);
+  // Validasi minimal
+  if (!username || amount <= 0) {
+    console.log("Invalid Saweria Payload:", body);
+    return res.status(200).json({ success: false });
+  }
 
-  // Kirim ke Roblox MessagingService
-  await fetch(
-    `https://apis.roblox.com/messaging-service/v1/universes/${process.env.ROBLOX_UNIVERSE_ID}/topics/saweriaDonation`,
-    {
-      method: "POST",
-      headers: {
-        "x-api-key": process.env.ROBLOX_API_KEY,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message: JSON.stringify({
-          userId,
-          amount,
-          message,
+  console.log("Saweria incoming:", username, amount, message);
+
+  // Payload untuk Roblox listener
+  const payload = {
+    username,
+    amount,
+    message,
+  };
+
+  try {
+    const send = await fetch(
+      `https://apis.roblox.com/messaging-service/v1/universes/${process.env.ROBLOX_UNIVERSE_ID}/topics/saweriaDonation`,
+      {
+        method: "POST",
+        headers: {
+          "x-api-key": process.env.ROBLOX_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: JSON.stringify(payload),
         }),
-      }),
-    }
-  );
+      }
+    );
+
+    const responseText = await send.text();
+    console.log("Roblox MessagingService Response:", send.status, responseText);
+  } catch (err) {
+    console.error("Failed to send to Roblox MessagingService:", err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
 
   return res.status(200).json({ success: true });
 }
