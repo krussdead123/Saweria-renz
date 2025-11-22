@@ -1,27 +1,34 @@
 export default async function handler(req, res) {
-  // Untuk test: jika GET → tampilkan pesan
-  if (req.method === "GET") {
-    return res.status(200).json({ message: "Saweria webhook endpoint aktif" });
-  }
-
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method Not Allowed" });
+    return res.status(200).json({ message: "Saweria webhook aktif" });
   }
 
-  try {
-    // Body tidak otomatis terparse di Vercel Node.js API
-    let body = "";
-    for await (const chunk of req) {
-      body += chunk;
+  const body = req.body;
+
+  const userId = Number(body?.data?.user_id);     // langsung user id roblox
+  const amount = Number(body?.data?.amount || 0); 
+  const message = body?.data?.message || "";      
+
+  console.log("Sending to Roblox:", userId, amount, message);
+
+  // Kirim ke Roblox MessagingService
+  await fetch(
+    `https://apis.roblox.com/messaging-service/v1/universes/${process.env.ROBLOX_UNIVERSE_ID}/topics/saweriaDonation`,
+    {
+      method: "POST",
+      headers: {
+        "x-api-key": process.env.ROBLOX_API_KEY,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: JSON.stringify({
+          userId,
+          amount,
+          message,
+        }),
+      }),
     }
+  );
 
-    const data = JSON.parse(body || "{}");
-
-    console.log("Webhook Saweria masuk:", data);
-
-    return res.status(200).json({ success: true });
-  } catch (err) {
-    console.error("Error parsing webhook:", err);
-    return res.status(400).json({ error: "Bad Request" });
-  }
+  return res.status(200).json({ success: true });
 }
