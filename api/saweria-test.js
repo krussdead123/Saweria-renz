@@ -3,7 +3,6 @@ export default async function handler(req, res) {
   const amount = Number(req.query.amount || 0);
   const message = req.query.message || "Test donasi";
 
-  // Fake payload Saweria mirip real
   const saweriaPayload = {
     donator_name: username,
     amount_raw: amount,
@@ -18,12 +17,9 @@ export default async function handler(req, res) {
   console.log(saweriaPayload);
   console.log("==============================\n");
 
-  // ===============================
-  // 1. LOOKUP USERID ROBLOX
-  // ===============================
+  // 1 — Lookup Roblox
   let userId = null;
-
-  console.log("🔍 Mencari Roblox UserId untuk:", username);
+  let displayName = null;
 
   try {
     const lookupRes = await fetch(
@@ -40,33 +36,28 @@ export default async function handler(req, res) {
 
     const lookupJson = await lookupRes.json();
 
-    console.log("\n📥 Lookup Response Raw:");
-    console.log(lookupJson);
+    console.log("🔍 Lookup Result:", lookupJson);
 
     if (lookupJson?.data?.length > 0) {
       userId = lookupJson.data[0].id;
+      displayName = lookupJson.data[0].displayName;
     }
-
   } catch (err) {
     console.log("❌ Lookup Error:", err);
   }
 
-  console.log("\n🎯 UserId ditemukan:", userId, "\n");
-
-  // ===============================
-  // 2. KIRIM PAYLOAD FINAL KE ROBLOX
-  // ===============================
-
+  // 2 — Payload final
   const finalPayload = {
     username,
+    displayName,
     userId: userId || null,
     amount,
     message,
+    testWebhook: true,
+    timestamp: Date.now()
   };
 
-  console.log("\n📦 Final Payload to Roblox:");
-  console.log(finalPayload);
-  console.log("\n==============================\n");
+  console.log("\n📦 Final Payload to Roblox:", finalPayload);
 
   try {
     const robloxReq = await fetch(
@@ -91,7 +82,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      status: robloxReq.status,
+      robloxStatus: robloxReq.status,
       robloxResponse: robloxText,
       payloadSent: finalPayload
     });
