@@ -10,7 +10,6 @@ export default async function handler(req, res) {
 
   const body = req.body;
 
-  // Ambil data dari Saweria
   const username = body?.donator_name || "";
   const amount = Number(body?.amount_to_display || body?.amount_raw || 0);
   const message = body?.message || "";
@@ -23,12 +22,13 @@ export default async function handler(req, res) {
   }
 
   // ===============================
-  // 1. LOOKUP USER ID ROBLOX
+  // 🔍 1. LOOKUP USER Roblox
   // ===============================
   let userId = null;
+  let displayName = username;
 
   try {
-    console.log("🔍 Mencari Roblox UserId untuk:", username);
+    console.log(`🔍 Mencari Roblox UserId untuk "${username}" ...`);
 
     const lookupResponse = await fetch(
       "https://users.roblox.com/v1/usernames/users",
@@ -48,19 +48,22 @@ export default async function handler(req, res) {
     const lookupData = JSON.parse(lookupText);
 
     if (lookupData?.data?.length > 0) {
-      userId = lookupData.data[0].id;
-      console.log("✅ UserId ditemukan:", userId);
+      const user = lookupData.data[0];
+      userId = user.id;
+      displayName = user.displayName || username;
+      console.log("✅ Roblox User Found:", userId, displayName);
     } else {
-      console.log("⚠ Tidak menemukan UserId Roblox untuk username:", username);
+      console.log("⚠ Tidak menemukan UserId Roblox:", username);
     }
   } catch (err) {
     console.error("❌ ERROR Lookup Roblox UserId:", err);
   }
 
-  // Payload final yang dikirim ke Roblox
+  // Payload final
   const payload = {
     username,
-    userId: userId || null,
+    userId: userId || 0,
+    displayName,
     amount,
     message,
     timestamp: Date.now(),
@@ -69,7 +72,7 @@ export default async function handler(req, res) {
   console.log("📦 Final Payload to Roblox:", JSON.stringify(payload, null, 2));
 
   // ===============================
-  // 2. KIRIM KE ROBLOX MESSAGING SERVICE
+  // 🚀 2. SEND TO ROBLOX MESSAGING SERVICE
   // ===============================
   try {
     console.log("🚀 Mengirim ke Roblox MessagingService...");
@@ -98,10 +101,7 @@ export default async function handler(req, res) {
     console.log("====================================");
   } catch (err) {
     console.error("❌ ERROR send to Roblox MessagingService:", err);
-    return res.status(500).json({
-      success: false,
-      error: err.message,
-    });
+    return res.status(500).json({ success: false, error: err.message });
   }
 
   return res.status(200).json({ success: true });
