@@ -3,6 +3,11 @@ export default async function handler(req, res) {
     return res.status(200).json({ message: "Saweria webhook aktif" });
   }
 
+  console.log("====================================");
+  console.log("📥 Incoming Saweria Webhook");
+  console.log("Raw Body:", JSON.stringify(req.body, null, 2));
+  console.log("====================================");
+
   const body = req.body;
 
   // Ambil data dari Saweria
@@ -10,19 +15,21 @@ export default async function handler(req, res) {
   const amount = Number(body?.amount_to_display || body?.amount_raw || 0);
   const message = body?.message || "";
 
+  console.log("Parsed Saweria Data:", { username, amount, message });
+
   if (!username || amount <= 0) {
-    console.log("Invalid Saweria Payload:", body);
+    console.log("❌ Invalid Saweria Payload:", body);
     return res.status(200).json({ success: false });
   }
 
-  console.log("Saweria incoming:", username, amount, message);
-
-  // ================================
-  // 1. CARI USERID ROBLOX DARI USERNAME
-  // ================================
+  // ===============================
+  // 1. LOOKUP USER ID ROBLOX
+  // ===============================
   let userId = null;
 
   try {
+    console.log("🔍 Mencari Roblox UserId untuk:", username);
+
     const lookupResponse = await fetch(
       "https://users.roblox.com/v1/usernames/users",
       {
@@ -35,18 +42,19 @@ export default async function handler(req, res) {
       }
     );
 
-    const lookupData = await lookupResponse.json();
-    console.log("Lookup Response:", lookupData);
+    const lookupText = await lookupResponse.text();
+    console.log("📩 Lookup Raw Response:", lookupText);
+
+    const lookupData = JSON.parse(lookupText);
 
     if (lookupData?.data?.length > 0) {
       userId = lookupData.data[0].id;
+      console.log("✅ UserId ditemukan:", userId);
+    } else {
+      console.log("⚠ Tidak menemukan UserId Roblox untuk username:", username);
     }
   } catch (err) {
-    console.error("Gagal mencari UserId Roblox:", err);
-  }
-
-  if (!userId) {
-    console.log("⚠ Username tidak ditemukan di Roblox:", username);
+    console.error("❌ ERROR Lookup Roblox UserId:", err);
   }
 
   // Payload final yang dikirim ke Roblox
@@ -55,12 +63,17 @@ export default async function handler(req, res) {
     userId: userId || null,
     amount,
     message,
+    timestamp: Date.now(),
   };
 
-  // ================================
+  console.log("📦 Final Payload to Roblox:", JSON.stringify(payload, null, 2));
+
+  // ===============================
   // 2. KIRIM KE ROBLOX MESSAGING SERVICE
-  // ================================
+  // ===============================
   try {
+    console.log("🚀 Mengirim ke Roblox MessagingService...");
+
     const send = await fetch(
       `https://apis.roblox.com/messaging-service/v1/universes/${process.env.ROBLOX_UNIVERSE_ID}/topics/saweriaDonation`,
       {
@@ -69,15 +82,26 @@ export default async function handler(req, res) {
           "x-api-key": process.env.ROBLOX_API_KEY,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: JSON.stringify(payload) }),
+        body: JSON.stringify({
+          message: JSON.stringify(payload),
+        }),
       }
     );
 
-    const responseText = await send.text();
-    console.log("Roblox MessagingService Response:", send.status, responseText);
+    const robloxResponseText = await send.text();
+
+    console.log("📨 Roblox MessagingService Status:", send.status);
+    console.log("📨 Roblox MessagingService Response:", robloxResponseText);
+
+    console.log("====================================");
+    console.log("Webhook Processed Successfully");
+    console.log("====================================");
   } catch (err) {
-    console.error("Failed to send to Roblox MessagingService:", err);
-    return res.status(500).json({ success: false, error: err.message });
+    console.error("❌ ERROR send to Roblox MessagingService:", err);
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+    });
   }
 
   return res.status(200).json({ success: true });
