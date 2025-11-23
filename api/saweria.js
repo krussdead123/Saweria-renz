@@ -5,8 +5,8 @@ export default async function handler(req, res) {
 
   const body = req.body;
 
-  // Ambil data langsung dari payload Saweria
-  const username = body?.donator_name || "Unknown";
+  // Ambil data dari Saweria
+  const username = body?.donator_name || "";
   const amount = Number(body?.amount_to_display || body?.amount_raw || 0);
   const message = body?.message || "";
 
@@ -17,12 +17,49 @@ export default async function handler(req, res) {
 
   console.log("Saweria incoming:", username, amount, message);
 
+  // ================================
+  // 1. CARI USERID ROBLOX DARI USERNAME
+  // ================================
+  let userId = null;
+
+  try {
+    const lookupResponse = await fetch(
+      "https://users.roblox.com/v1/usernames/users",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          usernames: [username],
+          excludeBannedUsers: false,
+        }),
+      }
+    );
+
+    const lookupData = await lookupResponse.json();
+    console.log("Lookup Response:", lookupData);
+
+    if (lookupData?.data?.length > 0) {
+      userId = lookupData.data[0].id;
+    }
+  } catch (err) {
+    console.error("Gagal mencari UserId Roblox:", err);
+  }
+
+  if (!userId) {
+    console.log("⚠ Username tidak ditemukan di Roblox:", username);
+  }
+
+  // Payload final yang dikirim ke Roblox
   const payload = {
     username,
+    userId: userId || null,
     amount,
     message,
   };
 
+  // ================================
+  // 2. KIRIM KE ROBLOX MESSAGING SERVICE
+  // ================================
   try {
     const send = await fetch(
       `https://apis.roblox.com/messaging-service/v1/universes/${process.env.ROBLOX_UNIVERSE_ID}/topics/saweriaDonation`,
